@@ -1,0 +1,1512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Payment Gateways Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #07091a; --bg-2: #0b0f23; --panel: #111734; --panel-2: #161d3f;
+    --border: #242d54; --border-2: #3a4680;
+    --text: #edf1ff; --muted: #8e99bd; --dim: #5b6792;
+    --accent: #6c9bff; --accent-2: #7ee787; --warn: #f5b041; --danger: #ff6b6b;
+    --chip: #1c2448;
+    --grad-1: linear-gradient(135deg, #6c9bff 0%, #8b5bff 100%);
+    --grad-2: linear-gradient(135deg, #7ee787 0%, #4fd1c5 100%);
+    --grad-3: linear-gradient(135deg, #f5b041 0%, #ff6b6b 100%);
+    --grad-4: linear-gradient(135deg, #ff7ebf 0%, #b56bff 100%);
+    --grad-5: linear-gradient(135deg, #4fd1ff 0%, #6c9bff 100%);
+    --shadow: 0 4px 20px rgba(0,0,0,0.35);
+    --shadow-lg: 0 12px 36px rgba(0,0,0,0.45);
+    --glow: 0 0 0 1px rgba(108,155,255,0.18), 0 8px 28px rgba(108,155,255,0.12);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Arial, sans-serif;
+    font-size: 14px; line-height: 1.45;
+    background:
+      radial-gradient(1200px 600px at 12% -10%, rgba(108,155,255,0.14), transparent 60%),
+      radial-gradient(900px 500px at 100% 0%, rgba(139,91,255,0.12), transparent 55%),
+      radial-gradient(800px 600px at 50% 120%, rgba(79,209,197,0.08), transparent 60%),
+      var(--bg);
+    background-attachment: fixed;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: linear-gradient(180deg, var(--border-2), var(--border)); border-radius: 6px; border: 2px solid transparent; background-clip: padding-box; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--accent); background-clip: padding-box; border: 2px solid transparent; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::selection { background: rgba(108,155,255,0.35); color: #fff; }
+
+  .top-bar { display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 22px; background: rgba(17,23,52,0.72); border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 100; backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    flex-wrap: wrap; gap: 10px;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.03) inset, 0 6px 20px rgba(0,0,0,0.25); }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-logo { width: 38px; height: 38px; border-radius: 11px; background: var(--grad-1);
+    display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 14px;
+    box-shadow: 0 6px 18px rgba(108,155,255,0.35), inset 0 1px 0 rgba(255,255,255,0.25); letter-spacing: .5px; }
+  .brand h1 { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: -.1px; }
+  .brand .sub { font-size: 12px; color: var(--muted); }
+
+  .file-chip { background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 999px; padding: 6px 12px; font-size: 12px; color: var(--muted);
+    display: inline-flex; align-items: center; gap: 8px; max-width: 520px; overflow: hidden; }
+  .file-chip strong { color: var(--text); }
+
+  button { background: var(--grad-1); color: #fff; border: none; padding: 8px 14px; border-radius: 9px;
+    cursor: pointer; font-weight: 500; font-size: 13px; transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+    box-shadow: 0 4px 14px rgba(108,155,255,0.28), inset 0 1px 0 rgba(255,255,255,0.18); }
+  button:hover { filter: brightness(1.08); transform: translateY(-1px); box-shadow: 0 6px 18px rgba(108,155,255,0.38), inset 0 1px 0 rgba(255,255,255,0.22); }
+  button:active { transform: translateY(0); filter: brightness(.98); }
+  button.ghost { background: rgba(255,255,255,0.02); border: 1px solid var(--border-2); color: var(--text); box-shadow: none; }
+  button.ghost:hover { border-color: var(--accent); color: var(--accent); background: rgba(108,155,255,0.08); box-shadow: 0 0 0 3px rgba(108,155,255,0.08); }
+  button.sm { padding: 5px 10px; font-size: 12px; }
+  button:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+  h2 { font-size: 12px; margin: 0 0 12px 0; color: var(--muted); text-transform: uppercase; letter-spacing: 1.2px; font-weight: 600; }
+
+  .hidden { display: none !important; }
+  .muted { color: var(--muted); }
+
+  .upload-wrap { padding: 60px 20px; display: flex; justify-content: center; }
+  #uploadArea { width: 100%; max-width: 720px; border: 2px dashed var(--border-2);
+    border-radius: 18px; padding: 52px 32px; text-align: center;
+    background: linear-gradient(180deg, rgba(22,29,63,0.65), rgba(17,23,52,0.55));
+    cursor: pointer; transition: .25s ease;
+    box-shadow: var(--shadow); backdrop-filter: blur(6px); }
+  #uploadArea:hover, #uploadArea.drag { border-color: var(--accent); background: linear-gradient(180deg, rgba(28,36,72,0.85), rgba(22,29,63,0.75)); transform: translateY(-2px); box-shadow: var(--glow); }
+  #uploadArea .icon { font-size: 52px; margin-bottom: 10px; filter: drop-shadow(0 6px 18px rgba(108,155,255,0.25)); }
+  #uploadArea .big { font-size: 18px; font-weight: 500; margin: 6px 0; }
+  #uploadArea .hint { font-size: 13px; color: var(--muted); margin-top: 12px; }
+  #fileInput { display: none; }
+  .supported { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 20px; }
+  .supported span { padding: 4px 10px; border-radius: 999px; font-size: 11px; background: var(--chip); color: var(--muted); border: 1px solid var(--border); }
+
+  .tabs { display: flex; gap: 4px; padding: 16px 20px 0; border-bottom: 1px solid var(--border); background: rgba(11,15,35,0.55); flex-wrap: wrap; backdrop-filter: blur(8px); }
+  .tab { padding: 10px 16px; border-radius: 10px 10px 0 0; cursor: pointer; font-size: 13px; font-weight: 500;
+    color: var(--muted); border-bottom: 2px solid transparent; transition: .18s ease; position: relative; }
+  .tab:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+  .tab.active { color: var(--text); background: var(--panel); border-bottom-color: var(--accent); box-shadow: 0 -2px 10px rgba(108,155,255,0.12); }
+
+  .filters { background: rgba(17,23,52,0.6); border-bottom: 1px solid var(--border);
+    padding: 14px 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;
+    backdrop-filter: blur(10px); }
+  .filter-group { min-width: 0; }
+  .filter-group label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .6px; font-weight: 600; }
+  select, input[type="text"], input[type="date"], input[type="number"] {
+    width: 100%; background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 10px; font-size: 13px; font-family: inherit; transition: border-color .15s, box-shadow .15s, background .15s; }
+  select:hover, input:hover { border-color: var(--border-2); }
+  select:focus, input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(108,155,255,0.18); background: var(--panel); }
+  input::placeholder { color: var(--dim); }
+  .range-pair { display: flex; gap: 6px; align-items: center; }
+  .range-pair input { min-width: 0; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 5px; max-height: 70px; overflow-y: auto; padding: 2px; }
+  .chip { background: var(--chip); border: 1px solid var(--border-2); color: var(--text);
+    border-radius: 999px; padding: 3px 10px; font-size: 11px; cursor: pointer; user-select: none;
+    white-space: nowrap; transition: all .15s ease; }
+  .chip:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
+  .chip.active { background: var(--grad-1); border-color: transparent; color: #fff; box-shadow: 0 4px 12px rgba(108,155,255,0.35); }
+
+  .page { padding: 20px; }
+  .page.hidden-tab { display: none; }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: 18px; }
+  .kpi { background: linear-gradient(160deg, var(--panel) 0%, var(--panel-2) 100%);
+    border: 1px solid var(--border); border-radius: 16px; padding: 18px 20px; position: relative; overflow: hidden;
+    box-shadow: var(--shadow); transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
+  .kpi:hover { transform: translateY(-2px); border-color: var(--border-2); box-shadow: var(--shadow-lg); }
+  .kpi::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; border-radius: 4px 0 0 4px; }
+  .kpi::after { content: ''; position: absolute; right: -40px; top: -40px; width: 140px; height: 140px; border-radius: 50%;
+    opacity: .08; filter: blur(8px); pointer-events: none; }
+  .kpi.g1::before { background: var(--grad-1); } .kpi.g1::after { background: var(--grad-1); }
+  .kpi.g2::before { background: var(--grad-2); } .kpi.g2::after { background: var(--grad-2); }
+  .kpi.g3::before { background: var(--grad-3); } .kpi.g3::after { background: var(--grad-3); }
+  .kpi.g4::before { background: var(--grad-4); } .kpi.g4::after { background: var(--grad-4); }
+  .kpi.g5::before { background: var(--grad-5); } .kpi.g5::after { background: var(--grad-5); }
+  .kpi .k-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); font-weight: 600; position: relative; z-index: 1; }
+  .kpi .k-value { font-size: 24px; font-weight: 700; margin-top: 6px; letter-spacing: -.4px; position: relative; z-index: 1;
+    background: linear-gradient(180deg, #ffffff 0%, #c9d3ff 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .kpi .k-sub { font-size: 12px; color: var(--muted); margin-top: 4px; position: relative; z-index: 1; }
+
+  .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; }
+  .card { background: linear-gradient(180deg, var(--panel) 0%, rgba(17,23,52,0.92) 100%);
+    border: 1px solid var(--border); border-radius: 16px; padding: 18px 20px; box-shadow: var(--shadow);
+    transition: border-color .2s ease, box-shadow .2s ease; }
+  .card:hover { border-color: var(--border-2); }
+  .card.h-sm { height: 300px; display: flex; flex-direction: column; }
+  .card.h-md { height: 360px; display: flex; flex-direction: column; }
+  .card.h-lg { height: 420px; display: flex; flex-direction: column; }
+  .card .chart-wrap { flex: 1; position: relative; min-height: 0; }
+  .card canvas { max-height: 100%; }
+  .span-3 { grid-column: span 3; } .span-4 { grid-column: span 4; } .span-6 { grid-column: span 6; }
+  .span-8 { grid-column: span 8; } .span-9 { grid-column: span 9; } .span-12 { grid-column: span 12; }
+  @media (max-width: 1100px) { .span-3, .span-4, .span-6, .span-8, .span-9 { grid-column: span 12; } }
+
+  .table-wrap { overflow: auto; max-height: 520px; border: 1px solid var(--border); border-radius: 12px; background: rgba(11,15,35,0.4); }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th, td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th { background: linear-gradient(180deg, var(--panel-2), var(--panel)); position: sticky; top: 0; font-weight: 600; font-size: 11.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; z-index: 2; border-bottom: 1px solid var(--border-2); }
+  th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tbody tr { transition: background .12s ease; }
+  tr:hover td { background: rgba(108,155,255,.07); }
+  tbody tr:last-child td { border-bottom: none; }
+  .pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 500; }
+  .pill.success { background: rgba(126,231,135,.14); color: var(--accent-2); border: 1px solid rgba(126,231,135,.25); }
+  .pill.failed { background: rgba(255,107,107,.14); color: var(--danger); border: 1px solid rgba(255,107,107,.25); }
+  .pill.pending { background: rgba(245,176,65,.14); color: var(--warn); border: 1px solid rgba(245,176,65,.25); }
+  .pill.neutral { background: var(--chip); color: var(--muted); border: 1px solid var(--border-2); }
+  .pill.gw { background: rgba(108,155,255,.1); color: var(--accent); border: 1px solid rgba(108,155,255,.35); }
+
+  .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+  .toolbar .grow { flex: 1; min-width: 220px; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11px; background: var(--chip); color: var(--muted); }
+
+  .matrix { display: grid; gap: 2px; font-size: 11px; }
+  .matrix .cell { padding: 6px 8px; text-align: center; border-radius: 4px; }
+  .matrix .cell.label { background: transparent; color: var(--muted); font-weight: 500; }
+  .matrix .cell.header { background: var(--panel-2); color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+
+  .flex { display: flex; } .flex-between { display: flex; justify-content: space-between; align-items: center; }
+  .gap-8 { gap: 8px; } .gap-12 { gap: 12px; }
+  .section-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
+  .section-title h3 { margin: 0; font-size: 16px; font-weight: 600; }
+  .section-title p { margin: 2px 0 0 0; font-size: 12px; color: var(--muted); }
+
+  .alert { padding: 10px 14px; border-radius: 8px; font-size: 13px; margin: 10px 0; }
+  .alert.warn { background: rgba(245,176,65,.1); color: var(--warn); border: 1px solid rgba(245,176,65,.25); }
+  .alert.err { background: rgba(255,107,107,.1); color: var(--danger); border: 1px solid rgba(255,107,107,.25); }
+  .alert.ok { background: rgba(126,231,135,.08); color: var(--accent-2); border: 1px solid rgba(126,231,135,.2); }
+
+  .fx-panel { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
+  .fx-tile { background: linear-gradient(160deg, var(--panel-2), rgba(22,29,63,0.65)); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; transition: transform .15s ease, border-color .15s ease; }
+  .fx-tile:hover { transform: translateY(-1px); border-color: var(--border-2); }
+  .fx-tile .c { font-size: 11px; color: var(--muted); font-weight: 600; letter-spacing: .5px; }
+  .fx-tile .v { font-size: 16px; font-weight: 700; margin-top: 3px; font-variant-numeric: tabular-nums; }
+  .fx-tile .sub { font-size: 11px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div class="brand">
+    <div class="brand-logo">PG</div>
+    <div>
+      <h1>Payment Gateways Dashboard</h1>
+      <div class="sub">Multi-gateway charges &amp; refunds analysis</div>
+    </div>
+  </div>
+  <div class="flex gap-12" style="align-items:center; flex-wrap:wrap;">
+    <span id="fileChip" class="file-chip hidden"></span>
+    <button id="addMore" class="ghost hidden">+ Add more files</button>
+    <button id="resetBtn" class="ghost">Reset</button>
+  </div>
+</div>
+
+<!-- UPLOAD -->
+<div id="uploadView" class="upload-wrap">
+  <div id="uploadArea">
+    <div class="icon">📁</div>
+    <div class="big">Drop your gateway reports</div>
+    <div class="muted">CSV or XLSX · one or many files · auto-detects each gateway</div>
+    <div style="margin-top:16px;"><button>Browse files</button></div>
+    <div class="supported">
+      <span>PayTM Payment</span><span>PayTM Refund</span>
+      <span>Razorpay Payments</span><span>Razorpay Refunds</span>
+      <span>Stripe Balance</span><span>PayPal Activity</span>
+      <span>xpay Transactions</span>
+    </div>
+    <div class="hint">tip: select all relevant files at once</div>
+    <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" multiple />
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" class="hidden">
+
+  <div class="tabs">
+    <div class="tab active" data-tab="overview">Overview</div>
+    <div class="tab" data-tab="gateways">Gateways</div>
+    <div class="tab" data-tab="modes">Payment Modes</div>
+    <div class="tab" data-tab="banks">Banks &amp; Schemes</div>
+    <div class="tab" data-tab="refunds">Refunds</div>
+    <div class="tab" data-tab="detail">Transactions</div>
+  </div>
+
+  <div class="filters">
+    <div class="filter-group">
+      <label>Date range</label>
+      <div class="range-pair">
+        <input type="date" id="fromDate" />
+        <span class="muted">to</span>
+        <input type="date" id="toDate" />
+      </div>
+    </div>
+    <div class="filter-group"><label>Gateway</label><div id="chipGateway" class="chips"></div></div>
+    <div class="filter-group"><label>Currency</label><div id="chipCurrency" class="chips"></div></div>
+    <div class="filter-group"><label>Kind</label><div id="chipKind" class="chips"></div></div>
+    <div class="filter-group"><label>Payment Mode</label><div id="chipMode" class="chips"></div></div>
+    <div class="filter-group"><label>Card Scheme</label><div id="chipScheme" class="chips"></div></div>
+    <div class="filter-group"><label>Status</label><div id="chipStatus" class="chips"></div></div>
+    <div class="filter-group">
+      <label>Amount range</label>
+      <div class="range-pair">
+        <input type="number" id="minAmt" placeholder="min" />
+        <input type="number" id="maxAmt" placeholder="max" />
+      </div>
+    </div>
+    <div class="filter-group" style="align-self: end;">
+      <button id="clearFilters" class="ghost sm">Clear all filters</button>
+    </div>
+  </div>
+
+  <!-- OVERVIEW -->
+  <div class="page" id="page-overview">
+    <div class="kpis">
+      <div class="kpi g1"><div class="k-label">Gross Amount (INR)</div><div class="k-value" id="kAmount">—</div><div class="k-sub" id="kAmountSub">—</div></div>
+      <div class="kpi g2"><div class="k-label">Total Charges (INR)</div><div class="k-value" id="kCharges">—</div><div class="k-sub" id="kChargesSub">fee + tax</div></div>
+      <div class="kpi g3"><div class="k-label">Effective Fee %</div><div class="k-value" id="kFeePct">—</div><div class="k-sub">INR rows only</div></div>
+      <div class="kpi g4"><div class="k-label">Refund Amount (INR)</div><div class="k-value" id="kRefund">—</div><div class="k-sub" id="kRefundSub">—</div></div>
+      <div class="kpi g5"><div class="k-label">Refund Rate</div><div class="k-value" id="kRefundRate">—</div><div class="k-sub">refund ÷ gross</div></div>
+      <div class="kpi g1"><div class="k-label">Net Amount (INR)</div><div class="k-value" id="kNet">—</div><div class="k-sub">gross − refund</div></div>
+      <div class="kpi g2"><div class="k-label">Payments</div><div class="k-value" id="kTxns">—</div><div class="k-sub" id="kTxnsSub">—</div></div>
+      <div class="kpi g3"><div class="k-label">Gateways Active</div><div class="k-value" id="kGw">—</div><div class="k-sub" id="kGwSub">—</div></div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <div class="section-title">
+        <div><h3>Foreign Currency Totals</h3><p>Non-INR transactions, shown per currency (no FX conversion)</p></div>
+      </div>
+      <div id="fxPanel" class="fx-panel"></div>
+    </div>
+
+    <div class="grid">
+      <div class="card h-md span-8">
+        <div class="flex-between">
+          <h2>Daily Trend — Charges &amp; Amount (INR)</h2>
+          <span class="badge" id="trendBadge"></span>
+        </div>
+        <div class="chart-wrap"><canvas id="cDaily"></canvas></div>
+      </div>
+      <div class="card h-md span-4">
+        <h2>Gateway Share of Charges</h2>
+        <div class="chart-wrap"><canvas id="cGwShare"></canvas></div>
+      </div>
+
+      <div class="card h-md span-6">
+        <h2>Charges by Gateway</h2>
+        <div class="chart-wrap"><canvas id="cGwCharges"></canvas></div>
+      </div>
+      <div class="card h-md span-6">
+        <h2>Effective Fee % by Gateway</h2>
+        <div class="chart-wrap"><canvas id="cGwFee"></canvas></div>
+      </div>
+
+      <div class="card h-md span-12">
+        <h2>Daily Stacked Charges by Gateway (INR)</h2>
+        <div class="chart-wrap"><canvas id="cDailyStacked"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GATEWAYS -->
+  <div class="page hidden-tab" id="page-gateways">
+    <div class="card span-12">
+      <div class="section-title">
+        <div><h3>Gateway Breakdown</h3><p>Native-currency totals per gateway. Fee % uses each row's own currency.</p></div>
+        <button id="expGw" class="ghost sm">Export CSV</button>
+      </div>
+      <div class="table-wrap">
+        <table id="tblGw">
+          <thead><tr>
+            <th>Gateway</th><th>Currency</th><th class="num">Payments</th><th class="num">Amount</th>
+            <th class="num">Charges</th><th class="num">Fee %</th>
+            <th class="num">Refunds</th><th class="num">Refund Amt</th><th class="num">Net</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="grid" style="margin-top:16px;">
+      <div class="card h-md span-12">
+        <h2>Daily Charges per Gateway (INR)</h2>
+        <div class="chart-wrap"><canvas id="cGwDaily"></canvas></div>
+      </div>
+      <div class="card h-md span-12">
+        <h2>Gateway × Payment Mode Charges (INR)</h2>
+        <div id="gwMatrixWrap" style="overflow:auto; height:340px; padding:8px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAYMENT MODES -->
+  <div class="page hidden-tab" id="page-modes">
+    <div class="card span-12">
+      <div class="section-title">
+        <div><h3>Payment Mode Breakdown (INR)</h3><p>All INR rows across all gateways</p></div>
+        <button id="expMode" class="ghost sm">Export CSV</button>
+      </div>
+      <div class="table-wrap">
+        <table id="tblMode">
+          <thead><tr>
+            <th>Mode</th><th class="num">Payments</th><th class="num">Amount</th>
+            <th class="num">Commission</th><th class="num">Tax</th><th class="num">Total Charges</th>
+            <th class="num">Fee %</th><th class="num">Avg Ticket</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="grid" style="margin-top:16px;">
+      <div class="card h-md span-6">
+        <h2>Charges by Mode (INR)</h2>
+        <div class="chart-wrap"><canvas id="cModeCharges"></canvas></div>
+      </div>
+      <div class="card h-md span-6">
+        <h2>Fee % by Mode (INR)</h2>
+        <div class="chart-wrap"><canvas id="cModeFee"></canvas></div>
+      </div>
+      <div class="card h-md span-12">
+        <h2>Gateway × Mode Fee % Matrix (INR)</h2>
+        <div id="matrixWrap" style="overflow:auto; height:340px; padding:8px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BANKS & SCHEMES -->
+  <div class="page hidden-tab" id="page-banks">
+    <div class="grid">
+      <div class="card h-md span-6">
+        <h2>Card Schemes — Charges (INR)</h2>
+        <div class="chart-wrap"><canvas id="cScheme"></canvas></div>
+      </div>
+      <div class="card h-md span-6">
+        <h2>Bank / Acquirer — Charges (INR)</h2>
+        <div class="chart-wrap"><canvas id="cAcq"></canvas></div>
+      </div>
+      <div class="card span-12">
+        <div class="section-title">
+          <div><h3>Top Issuing Banks</h3><p>Ranked by charges; INR rows only</p></div>
+          <div class="flex gap-8">
+            <input type="text" id="bankSearch" placeholder="Search bank..." style="width: 220px;" />
+            <button id="expBank" class="ghost sm">Export CSV</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table id="tblBank">
+            <thead><tr>
+              <th>Issuing Bank</th><th class="num">Txns</th><th class="num">Amount</th>
+              <th class="num">Charges</th><th class="num">Fee %</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- REFUNDS -->
+  <div class="page hidden-tab" id="page-refunds">
+    <div class="kpis" style="grid-template-columns: repeat(auto-fit, minmax(180px,1fr));">
+      <div class="kpi g3"><div class="k-label">Refund Amount (INR)</div><div class="k-value" id="rAmount">—</div><div class="k-sub" id="rAmountSub">—</div></div>
+      <div class="kpi g4"><div class="k-label">Refunds</div><div class="k-value" id="rCount">—</div><div class="k-sub" id="rCountSub">—</div></div>
+      <div class="kpi g5"><div class="k-label">Refund Rate (INR)</div><div class="k-value" id="rRatePct">—</div><div class="k-sub">refund ÷ gross</div></div>
+      <div class="kpi g1"><div class="k-label">Avg Refund</div><div class="k-value" id="rAvg">—</div><div class="k-sub">refund ÷ count</div></div>
+    </div>
+    <div class="grid">
+      <div class="card h-md span-8">
+        <h2>Daily Refunds (INR)</h2>
+        <div class="chart-wrap"><canvas id="cRefundDaily"></canvas></div>
+      </div>
+      <div class="card h-md span-4">
+        <h2>Refunds by Gateway</h2>
+        <div class="chart-wrap"><canvas id="cRefundGw"></canvas></div>
+      </div>
+      <div class="card h-md span-6">
+        <h2>Refunds by Payment Mode (INR)</h2>
+        <div class="chart-wrap"><canvas id="cRefundMode"></canvas></div>
+      </div>
+      <div class="card h-md span-6">
+        <h2>Top Issuing Banks (refunds, INR)</h2>
+        <div class="chart-wrap"><canvas id="cRefundBank"></canvas></div>
+      </div>
+      <div class="card span-12">
+        <div class="section-title">
+          <div><h3>Refund Transactions</h3><p>All refunds in current filters</p></div>
+          <div class="flex gap-8">
+            <span class="badge" id="refundBadge">0 rows</span>
+            <button id="expRefund" class="ghost sm">Export CSV</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table id="tblRefund">
+            <thead><tr>
+              <th>Date</th><th>Gateway</th><th>Txn ID</th><th>Mode</th>
+              <th>Issuing Bank</th><th>Status</th><th class="num">Currency</th><th class="num">Amount</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DETAIL -->
+  <div class="page hidden-tab" id="page-detail">
+    <div class="card">
+      <div class="section-title">
+        <div><h3>Transaction Detail</h3><p>All rows (filtered)</p></div>
+        <div class="flex gap-8">
+          <input type="text" id="detailSearch" placeholder="Search any field..." style="width: 260px;" />
+          <span class="badge" id="detailBadge">0 rows</span>
+          <button id="expDetail" class="ghost sm">Export CSV</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table id="tblDetail">
+          <thead><tr>
+            <th>Date</th><th>Gateway</th><th>Kind</th><th>Mode</th><th>Scheme</th>
+            <th>Issuing Bank</th><th>Status</th><th>Country</th>
+            <th>Currency</th><th class="num">Amount</th><th class="num">Charges</th><th class="num">Fee %</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ============================================================
+   STATE
+============================================================ */
+const state = {
+  rows: [],            // normalized rows
+  files: [],           // [{name, gateway, kind, count}]
+  filters: {
+    fromDate: null, toDate: null,
+    minAmt: null, maxAmt: null,
+    gateways: new Set(), currencies: new Set(), kinds: new Set(),
+    modes: new Set(), schemes: new Set(), statuses: new Set(),
+  },
+  charts: {},
+  tab: 'overview',
+};
+
+/* ============================================================
+   UTILS
+============================================================ */
+const $ = (id) => document.getElementById(id);
+const unq = v => v == null ? '' : String(v).replace(/^'+|'+$/g, '').trim();
+const fmtInt = n => (n || 0).toLocaleString('en-IN');
+function fmtMoney(n) {
+  if (n == null || isNaN(n)) return '—';
+  const a = Math.abs(n);
+  if (a >= 1e7) return (n/1e7).toFixed(2) + ' Cr';
+  if (a >= 1e5) return (n/1e5).toFixed(2) + ' L';
+  if (a >= 1e3) return (n/1e3).toFixed(2) + ' K';
+  return n.toFixed(2);
+}
+function fmtFull(n) {
+  if (n == null || isNaN(n)) return '—';
+  return n.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+}
+const fmtPct = (n, d=2) => (n == null || isNaN(n)) ? '—' : n.toFixed(d) + '%';
+function parseNum(v) {
+  if (v == null || v === '') return 0;
+  if (typeof v === 'number') return v;
+  const s = unq(v).replace(/[₹$,\s]/g, '');
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+function parseDateVal(v) {
+  if (v == null || v === '') return null;
+  if (v instanceof Date && !isNaN(v)) return v;
+  const s = unq(v);
+  // ISO: 2026-03-01 09:40:24 or 2026-03-01T...
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{1,2}):(\d{2}):(\d{2})/);
+  if (m) return new Date(+m[1], +m[2]-1, +m[3], +m[4], +m[5], +m[6]);
+  m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return new Date(+m[1], +m[2]-1, +m[3]);
+  // DD/MM/YYYY HH:MM:SS
+  m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})[\s,]+(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if (m) { let [_, d, mo, y, h, mi, ss] = m; if (y.length === 2) y = '20' + y; return new Date(+y, +mo-1, +d, +h, +mi, +(ss||0)); }
+  // DD-MM-YY HH:MM
+  m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+  if (m) { let [_, d, mo, y] = m; if (y.length === 2) y = '20' + y; return new Date(+y, +mo-1, +d); }
+  const dt = new Date(s);
+  return isNaN(dt) ? null : dt;
+}
+const dayKey = dt => dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0');
+function dayLabel(k) { const [y,m,d]=k.split('-'); return d + ' ' + new Date(+y,+m-1,+d).toLocaleString('en-US',{month:'short'}); }
+const toInputDate = dt => dayKey(dt);
+
+/* Normalize payment modes across gateways */
+function normalizeMode(raw) {
+  if (!raw) return '(unknown)';
+  const s = String(raw).toUpperCase().trim();
+  if (/UPI/.test(s)) return 'UPI';
+  if (/EMI/.test(s)) return 'EMI';
+  if (/CREDIT_CARD|^CC$/.test(s)) return 'CREDIT_CARD';
+  if (/DEBIT_CARD|^DC$/.test(s)) return 'DEBIT_CARD';
+  if (/^CARD$/.test(s)) return 'CARD';
+  if (/NET.?BANK|^NB$/.test(s)) return 'NETBANKING';
+  if (/WALLET/.test(s)) return 'WALLET';
+  if (/PAYPAL/.test(s)) return 'PAYPAL';
+  if (/BANK_TRANSFER|BANKTRANSFER|ACH/.test(s)) return 'BANK_TRANSFER';
+  return s.replace(/_/g, ' ');
+}
+
+/* ============================================================
+   FILE UPLOAD
+============================================================ */
+const uploadArea = $('uploadArea'), fileInput = $('fileInput');
+uploadArea.addEventListener('click', () => fileInput.click());
+uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('drag'); });
+uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('drag'));
+uploadArea.addEventListener('drop', e => { e.preventDefault(); uploadArea.classList.remove('drag'); if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files); });
+fileInput.addEventListener('change', e => { if (e.target.files.length) handleFiles(e.target.files); });
+$('resetBtn').addEventListener('click', () => location.reload());
+$('addMore').addEventListener('click', () => fileInput.click());
+
+function handleFiles(fileList) {
+  const files = Array.from(fileList);
+  let pending = files.length;
+  const bundle = [];
+  files.forEach(file => {
+    const reader = new FileReader();
+    const name = file.name.toLowerCase();
+    reader.onload = e => {
+      try {
+        let rows = [];
+        if (name.endsWith('.csv')) {
+          const p = Papa.parse(e.target.result, { header: true, skipEmptyLines: true, dynamicTyping: false });
+          rows = p.data;
+        } else {
+          const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array', cellDates: true });
+          // Some exports (Stripe) place headers on row 2. Detect.
+          const sheet = wb.Sheets[wb.SheetNames[0]];
+          rows = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: true });
+          if (rows.length && hasEmptyHeaders(rows[0])) {
+            // retry skipping 1 row
+            rows = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: true, range: 1 });
+          }
+        }
+        bundle.push({ file, rows });
+      } catch (err) { console.error('Failed to parse ' + file.name, err); alert('Failed to parse: ' + file.name); }
+      if (--pending === 0) ingestBundle(bundle);
+    };
+    if (name.endsWith('.csv')) reader.readAsText(file);
+    else reader.readAsArrayBuffer(file);
+  });
+}
+function hasEmptyHeaders(row) {
+  const keys = Object.keys(row);
+  let empty = 0;
+  keys.forEach(k => { if (/^__EMPTY/i.test(k)) empty++; });
+  return empty >= Math.max(5, keys.length * 0.5);
+}
+
+/* ============================================================
+   PER-GATEWAY PARSERS
+   Each returns { gateway, kind, rows: [normalized...] }
+============================================================ */
+const normRow = (o) => ({
+  gateway: '', kind: 'payment',
+  dt: null, day: '',
+  txnId: '', orderId: '',
+  amount: 0, currency: 'INR',
+  commission: 0, gst: 0, charges: 0,
+  mode: '(unknown)', scheme: '(n/a)',
+  issuingBank: '(blank)', acquirer: '(blank)',
+  status: '—', country: '—',
+  channel: '', feePct: 0,
+  raw: null,
+  ...o
+});
+
+function classifyAndParse(file, rows) {
+  const name = file.name.toLowerCase();
+  const hdrs = rows.length ? Object.keys(rows[0]) : [];
+  // PayTM
+  if (/paytm/.test(name) && hdrs.includes('Transaction_Date') && hdrs.includes('Commission')) {
+    return parsePayTM(rows, /refund/.test(name) ? 'refund' : 'payment');
+  }
+  // Razorpay payments
+  if (/razorpay/.test(name) && hdrs.includes('id') && hdrs.includes('fee') && hdrs.includes('method')) {
+    return /refund/.test(name) ? parseRazorpayRefund(rows) : parseRazorpayPayment(rows);
+  }
+  // Razorpay refund standalone
+  if (/razorpay.*refund|scrooge/.test(name) && hdrs.includes('id') && hdrs.includes('payment_id')) {
+    return parseRazorpayRefund(rows);
+  }
+  // Razorpay transactions (settlement)
+  if (/razorpay/.test(name) && hdrs.includes('entity_id') && hdrs.includes('settled')) {
+    return parseRazorpayTxns(rows);
+  }
+  // Stripe
+  if (hdrs.includes('balance_transaction_id') && hdrs.includes('gross') && hdrs.includes('fee')) {
+    return parseStripe(rows);
+  }
+  // PayPal
+  if (hdrs.includes('Gross') && hdrs.includes('Fee') && hdrs.includes('Transaction ID')) {
+    return parsePayPal(rows);
+  }
+  // xpay
+  if ((hdrs.includes('IntentId') || /xpay/.test(name)) && hdrs.includes('Amount') && hdrs.includes('PaymentMethod')) {
+    return parseXpay(rows);
+  }
+  return { gateway: '?', kind: '?', rows: [], unrecognized: true, file: file.name, headers: hdrs.slice(0, 8) };
+}
+
+function parsePayTM(rows, kind) {
+  const out = [];
+  for (const r of rows) {
+    const dt = parseDateVal(r['Transaction_Date']); if (!dt) continue;
+    const amount = parseNum(r['Amount']);
+    const commission = parseNum(r['Commission']);
+    const gst = parseNum(r['GST']);
+    const ttype = unq(r['Transaction_Type']).toUpperCase();
+    const actualKind = ttype === 'REFUND' ? 'refund' : kind;
+    out.push(normRow({
+      gateway: 'PayTM', kind: actualKind, dt, day: dayKey(dt),
+      txnId: unq(r['Transaction_ID']), orderId: unq(r['Order_ID']),
+      amount, currency: 'INR', commission, gst, charges: commission + gst,
+      mode: normalizeMode(unq(r['Payment_Mode'])),
+      scheme: unq(r['Card_Scheme']) || '(n/a)',
+      issuingBank: unq(r['Issuing_Bank']) || '(blank)',
+      acquirer: unq(r['Bank/Gateway']) || '(blank)',
+      status: unq(r['Status']) || '—',
+      channel: unq(r['Channel']) || '',
+      country: 'IN',
+      feePct: amount ? (commission + gst) / amount * 100 : 0,
+      raw: r,
+    }));
+  }
+  return { gateway: 'PayTM', kind, rows: out };
+}
+
+function parseRazorpayPayment(rows) {
+  const out = [];
+  for (const r of rows) {
+    const dt = parseDateVal(r['created_at']); if (!dt) continue;
+    const amount = parseNum(r['amount']);
+    const fee = parseNum(r['fee']);
+    const tax = parseNum(r['tax']);
+    const currency = (unq(r['currency']) || 'INR').toUpperCase();
+    out.push(normRow({
+      gateway: 'Razorpay', kind: 'payment', dt, day: dayKey(dt),
+      txnId: unq(r['id']), orderId: unq(r['order_id']),
+      amount, currency, commission: fee, gst: tax, charges: fee + tax,
+      mode: normalizeMode(unq(r['method'])),
+      scheme: unq(r['card_network']) || '(n/a)',
+      issuingBank: unq(r['bank']) || unq(r['wallet']) || unq(r['vpa']) || '(blank)',
+      acquirer: 'Razorpay',
+      status: (unq(r['status']) || '—').toUpperCase(),
+      channel: unq(r['source_channel']) || '',
+      country: unq(r['international']) === '1' ? '—' : 'IN',
+      feePct: amount ? (fee + tax) / amount * 100 : 0,
+      raw: r,
+    }));
+  }
+  return { gateway: 'Razorpay', kind: 'payment', rows: out };
+}
+
+function parseRazorpayRefund(rows) {
+  const out = [];
+  for (const r of rows) {
+    const dt = parseDateVal(r['created_at']); if (!dt) continue;
+    const amount = parseNum(r['amount']);
+    const currency = (unq(r['currency']) || 'INR').toUpperCase();
+    out.push(normRow({
+      gateway: 'Razorpay', kind: 'refund', dt, day: dayKey(dt),
+      txnId: unq(r['id']), orderId: unq(r['payment_id']),
+      amount, currency, charges: 0,
+      mode: normalizeMode(unq(r['upi_mode']) || 'refund'),
+      acquirer: 'Razorpay',
+      status: (unq(r['status']) || 'PROCESSED').toUpperCase(),
+      channel: unq(r['source_channel']) || '',
+      country: 'IN',
+      raw: r,
+    }));
+  }
+  return { gateway: 'Razorpay', kind: 'refund', rows: out };
+}
+
+function parseRazorpayTxns(rows) {
+  // settlement report; use as payment-level if no Razorpay_payments file provided
+  const out = [];
+  for (const r of rows) {
+    const dt = parseDateVal(r['created_at']); if (!dt) continue;
+    const ttype = unq(r['type']).toLowerCase();
+    const isRefund = /refund/.test(ttype);
+    const amount = parseNum(r['amount']) || parseNum(r['credit']) || parseNum(r['debit']);
+    const fee = parseNum(r['fee']);
+    const tax = parseNum(r['tax']);
+    const currency = (unq(r['currency']) || 'INR').toUpperCase();
+    out.push(normRow({
+      gateway: 'Razorpay', kind: isRefund ? 'refund' : 'payment', dt, day: dayKey(dt),
+      txnId: unq(r['payment_id']) || unq(r['entity_id']), orderId: unq(r['order_id']),
+      amount, currency, commission: fee, gst: tax, charges: fee + tax,
+      mode: normalizeMode(unq(r['method'])),
+      scheme: unq(r['card_network']) || '(n/a)',
+      issuingBank: unq(r['card_issuer']) || '(blank)',
+      acquirer: 'Razorpay',
+      status: parseNum(r['settled']) ? 'SETTLED' : 'UNSETTLED',
+      channel: unq(r['upi_flow']) || '',
+      country: 'IN',
+      feePct: amount ? (fee + tax) / amount * 100 : 0,
+      raw: r,
+    }));
+  }
+  return { gateway: 'Razorpay', kind: 'mixed', rows: out };
+}
+
+function parseStripe(rows) {
+  const out = [];
+  for (const r of rows) {
+    const dt = parseDateVal(r['created'] || r['created_utc']); if (!dt) continue;
+    const category = (unq(r['reporting_category']) || '').toLowerCase();
+    const isRefund = /refund/.test(category);
+    const gross = parseNum(r['gross']);
+    const fee = parseNum(r['fee']);
+    const currency = (unq(r['currency']) || 'USD').toUpperCase();
+    out.push(normRow({
+      gateway: 'Stripe', kind: isRefund ? 'refund' : 'payment', dt, day: dayKey(dt),
+      txnId: unq(r['balance_transaction_id']) || unq(r['charge_id']),
+      orderId: unq(r['payment_intent_id']) || unq(r['invoice_id']),
+      amount: Math.abs(gross),
+      currency,
+      commission: fee, gst: 0, charges: fee,
+      mode: normalizeMode(unq(r['payment_method_type']) || 'CARD'),
+      scheme: unq(r['card_network']) || unq(r['card_brand']) || '(n/a)',
+      issuingBank: unq(r['card_country']) || '(blank)',
+      acquirer: 'Stripe',
+      status: isRefund ? 'REFUNDED' : 'SUCCESS',
+      country: unq(r['country']) || unq(r['card_country']) || '—',
+      feePct: gross ? fee / Math.abs(gross) * 100 : 0,
+      raw: r,
+    }));
+  }
+  return { gateway: 'Stripe', kind: 'mixed', rows: out };
+}
+
+function parsePayPal(rows) {
+  const out = [];
+  for (const r of rows) {
+    // Filter to real Payment rows; skip "Shopping Cart Item" etc.
+    const type1 = unq(r['Type']); // two 'Type' cols — PapaParse keeps the second value for duplicate keys
+    const typeTxt = String(type1 || '').toLowerCase();
+    const balanceImpact = unq(r['Balance Impact']);
+    // keep only rows with gross, fee, and a status
+    const status = unq(r['Status']);
+    const gross = parseNum(r['Gross']);
+    if (!status) continue;
+    const dt = parseDateVal((unq(r['Date']) + ' ' + unq(r['Time'])).trim()); if (!dt) continue;
+    const fee = parseNum(r['Fee']);
+    const currency = (unq(r['Currency']) || 'USD').toUpperCase();
+    const isRefund = /refund|reversal/i.test(typeTxt);
+    out.push(normRow({
+      gateway: 'PayPal', kind: isRefund ? 'refund' : 'payment', dt, day: dayKey(dt),
+      txnId: unq(r['Transaction ID']), orderId: unq(r['Reference Txn ID']) || unq(r['Invoice Number']),
+      amount: Math.abs(gross),
+      currency,
+      commission: Math.abs(fee), gst: 0, charges: Math.abs(fee),
+      mode: normalizeMode(unq(r['Funding Source']) || 'PAYPAL'),
+      scheme: unq(r['Card Type']) || '(n/a)',
+      issuingBank: unq(r['Country']) || '(blank)',
+      acquirer: 'PayPal',
+      status: status.toUpperCase(),
+      country: unq(r['Country Code']) || unq(r['Transaction Buyer Country Code']) || '—',
+      feePct: gross ? Math.abs(fee) / Math.abs(gross) * 100 : 0,
+      raw: r,
+    }));
+  }
+  return { gateway: 'PayPal', kind: 'mixed', rows: out };
+}
+
+function parseXpay(rows) {
+  const out = [];
+  for (const r of rows) {
+    const dt = parseDateVal(r['CreatedAt']); if (!dt) continue;
+    const amount = parseNum(r['Amount']);
+    const currency = (unq(r['Currency']) || 'INR').toUpperCase();
+    out.push(normRow({
+      gateway: 'xpay', kind: 'payment', dt, day: dayKey(dt),
+      txnId: unq(r['IntentId']), orderId: unq(r['ReceiptId']) || unq(r['PaymentLinkId']),
+      amount, currency, commission: 0, gst: 0, charges: 0,
+      mode: normalizeMode(unq(r['PaymentMethod'])),
+      scheme: unq(r['CardNetwork']) || '(n/a)',
+      issuingBank: unq(r['CardCountry']) || '(blank)',
+      acquirer: 'xpay',
+      status: (unq(r['Status']) || '—').toUpperCase(),
+      country: unq(r['CardCountry']) || '—',
+      feePct: 0,
+      raw: r,
+    }));
+  }
+  return { gateway: 'xpay', kind: 'payment', rows: out };
+}
+
+/* ============================================================
+   INGEST
+============================================================ */
+function ingestBundle(bundle) {
+  const unrecognized = [];
+  const fileSummaries = [];
+  bundle.forEach(({ file, rows }) => {
+    if (!rows.length) { unrecognized.push(file.name + ' (empty)'); return; }
+    const parsed = classifyAndParse(file, rows);
+    if (parsed.unrecognized) {
+      unrecognized.push(file.name + ' — headers: ' + (parsed.headers || []).join(', '));
+      return;
+    }
+    fileSummaries.push({ name: file.name, gateway: parsed.gateway, kind: parsed.kind, count: parsed.rows.length });
+    parsed.rows.forEach(r => state.rows.push(r));
+  });
+  if (unrecognized.length) {
+    alert('These files were not recognized:\n' + unrecognized.join('\n'));
+  }
+  state.files.push(...fileSummaries);
+  if (!state.rows.length) return;
+  showApp();
+  initFilters();
+  render();
+}
+
+function showApp() {
+  $('uploadView').classList.add('hidden');
+  $('app').classList.remove('hidden');
+  $('fileChip').classList.remove('hidden');
+  $('addMore').classList.remove('hidden');
+  const summary = state.files.map(f => `${f.gateway}:${f.count}${f.kind==='refund'?' (rf)':''}`).join(' · ');
+  $('fileChip').innerHTML = '<span>📄</span> <strong>' + state.files.length + ' files</strong> · ' + summary;
+}
+
+/* ============================================================
+   FILTERS
+============================================================ */
+let _dMinCache, _dMaxCache;
+function initFilters() {
+  // tabs — idempotent
+  document.querySelectorAll('.tab').forEach(t => {
+    t.onclick = () => {
+      document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      state.tab = t.dataset.tab;
+      document.querySelectorAll('.page').forEach(p => p.classList.add('hidden-tab'));
+      $('page-' + state.tab).classList.remove('hidden-tab');
+      setTimeout(render, 40);
+    };
+  });
+
+  const dts = state.rows.map(r => r.dt).sort((a,b)=>a-b);
+  const dMin = dts[0], dMax = dts[dts.length-1];
+  _dMinCache = dMin; _dMaxCache = dMax;
+  if (!state.filters.fromDate) { state.filters.fromDate = toInputDate(dMin); $('fromDate').value = state.filters.fromDate; }
+  if (!state.filters.toDate) { state.filters.toDate = toInputDate(dMax); $('toDate').value = state.filters.toDate; }
+
+  mkChips('chipGateway', uniq(r => r.gateway), state.filters.gateways);
+  mkChips('chipCurrency', uniq(r => r.currency), state.filters.currencies);
+  mkChips('chipKind', ['payment','refund'].filter(k => state.rows.some(r => r.kind === k)), state.filters.kinds);
+  mkChips('chipMode', uniq(r => r.mode), state.filters.modes);
+  mkChips('chipScheme', uniq(r => r.scheme), state.filters.schemes);
+  mkChips('chipStatus', uniq(r => r.status), state.filters.statuses);
+
+  $('fromDate').onchange = () => { state.filters.fromDate = $('fromDate').value; render(); };
+  $('toDate').onchange = () => { state.filters.toDate = $('toDate').value; render(); };
+  $('minAmt').oninput = () => { state.filters.minAmt = parseFloat($('minAmt').value) || null; render(); };
+  $('maxAmt').oninput = () => { state.filters.maxAmt = parseFloat($('maxAmt').value) || null; render(); };
+  $('clearFilters').onclick = () => {
+    ['gateways','currencies','kinds','modes','schemes','statuses'].forEach(k => state.filters[k].clear());
+    state.filters.minAmt = null; state.filters.maxAmt = null;
+    $('minAmt').value = ''; $('maxAmt').value = '';
+    state.filters.fromDate = toInputDate(dMin); state.filters.toDate = toInputDate(dMax);
+    $('fromDate').value = state.filters.fromDate; $('toDate').value = state.filters.toDate;
+    initFilters();
+    render();
+  };
+  $('bankSearch').oninput = render;
+  $('detailSearch').oninput = render;
+}
+
+function uniq(fn) { return [...new Set(state.rows.map(fn))].sort(); }
+function mkChips(id, values, selSet) {
+  const el = $(id); el.innerHTML = '';
+  values.forEach(v => {
+    const c = document.createElement('span');
+    c.className = 'chip' + (selSet.has(v) ? ' active' : '');
+    c.textContent = v;
+    c.onclick = () => { selSet.has(v) ? selSet.delete(v) : selSet.add(v); c.classList.toggle('active'); render(); };
+    el.appendChild(c);
+  });
+}
+
+function filtered() {
+  const f = state.filters;
+  return state.rows.filter(r => {
+    if (f.fromDate && r.day < f.fromDate) return false;
+    if (f.toDate && r.day > f.toDate) return false;
+    if (f.minAmt != null && r.amount < f.minAmt) return false;
+    if (f.maxAmt != null && r.amount > f.maxAmt) return false;
+    if (f.gateways.size && !f.gateways.has(r.gateway)) return false;
+    if (f.currencies.size && !f.currencies.has(r.currency)) return false;
+    if (f.kinds.size && !f.kinds.has(r.kind)) return false;
+    if (f.modes.size && !f.modes.has(r.mode)) return false;
+    if (f.schemes.size && !f.schemes.has(r.scheme)) return false;
+    if (f.statuses.size && !f.statuses.has(r.status)) return false;
+    return true;
+  });
+}
+
+/* ============================================================
+   RENDER
+============================================================ */
+const palette = ['#5b8cff','#7ee787','#f5b041','#ff6b6b','#b56bff','#4fd1c5','#ff7ebf','#fdd763','#7cb9ff','#9d7cff','#ffb17a','#63d471','#56c5ff','#c6c4f5','#ff9a76'];
+const color = i => palette[i % palette.length];
+const destroy = k => { if (state.charts[k]) { state.charts[k].destroy(); delete state.charts[k]; } };
+
+function baseOpts({ legend=true, yMoney=false, yPct=false, stacked=false, indexAxis='x' }={}) {
+  return {
+    responsive: true, maintainAspectRatio: false, indexAxis,
+    interaction: { intersect: false, mode: 'index' },
+    plugins: {
+      legend: { display: legend, position: 'bottom', labels: { color: '#e9eefb', boxWidth: 10, font:{size:11} } },
+      tooltip: {
+        backgroundColor: '#0f1629', borderColor: '#27304a', borderWidth: 1,
+        titleColor: '#e9eefb', bodyColor: '#e9eefb',
+        callbacks: { label: c => {
+          const v = c.parsed.y ?? c.parsed.x ?? c.parsed;
+          if (yMoney) return c.dataset.label + ': ₹ ' + fmtMoney(v);
+          if (yPct) return c.dataset.label + ': ' + (+v).toFixed(2) + '%';
+          return c.dataset.label + ': ' + fmtInt(v);
+        }}
+      }
+    },
+    scales: {
+      x: { stacked, ticks: { color: '#8a94ad', font:{size:11} }, grid: { color: 'rgba(138,148,173,0.08)' } },
+      y: { stacked, beginAtZero: true, ticks: { color: '#8a94ad', font:{size:11},
+        callback: v => yMoney ? fmtMoney(v) : (yPct ? v + '%' : v)
+      }, grid: { color: 'rgba(138,148,173,0.08)' } }
+    }
+  };
+}
+
+function render() {
+  const rows = filtered();
+  const inr = rows.filter(r => r.currency === 'INR');
+  const inrPay = inr.filter(r => r.kind === 'payment');
+  const inrRef = inr.filter(r => r.kind === 'refund');
+
+  renderKPIs(rows, inrPay, inrRef);
+  renderFxPanel(rows);
+
+  if (state.tab === 'overview') {
+    renderDaily(inrPay);
+    renderGwShare(inrPay);
+    renderGwCharges(inrPay);
+    renderGwFee(inrPay);
+    renderDailyStacked(inrPay);
+  } else if (state.tab === 'gateways') {
+    renderGwTable(rows);
+    renderGwDaily(inrPay);
+    renderGwMatrix(inrPay);
+  } else if (state.tab === 'modes') {
+    renderModeTable(inrPay);
+    renderModeCharges(inrPay);
+    renderModeFee(inrPay);
+    renderMatrix(inrPay);
+  } else if (state.tab === 'banks') {
+    renderScheme(inrPay);
+    renderAcquirer(inrPay);
+    renderBankTable(inrPay);
+  } else if (state.tab === 'refunds') {
+    renderRefundKPIs(inrPay, inrRef);
+    renderRefundDaily(inrRef);
+    renderRefundGw(rows.filter(r => r.kind === 'refund'));
+    renderRefundMode(inrRef);
+    renderRefundBank(inrRef);
+    renderRefundTable(rows.filter(r => r.kind === 'refund'));
+  } else if (state.tab === 'detail') {
+    renderDetailTable(rows);
+  }
+}
+
+function renderKPIs(rows, inrPay, inrRef) {
+  const amount = inrPay.reduce((a,r)=>a+r.amount, 0);
+  const charges = inrPay.reduce((a,r)=>a+r.charges, 0);
+  const refund = inrRef.reduce((a,r)=>a+r.amount, 0);
+  const txns = inrPay.length;
+  const refundCnt = inrRef.length;
+  const activeGw = new Set(rows.map(r => r.gateway));
+
+  $('kAmount').textContent = '₹ ' + fmtMoney(amount);
+  $('kAmountSub').textContent = fmtFull(amount);
+  $('kCharges').textContent = '₹ ' + fmtMoney(charges);
+  const comm = inrPay.reduce((a,r)=>a+r.commission, 0);
+  const gst = inrPay.reduce((a,r)=>a+r.gst, 0);
+  $('kChargesSub').textContent = 'comm ₹' + fmtMoney(comm) + ' + tax ₹' + fmtMoney(gst);
+  $('kFeePct').textContent = amount ? fmtPct(charges/amount*100, 3) : '—';
+  $('kRefund').textContent = '₹ ' + fmtMoney(refund);
+  $('kRefundSub').textContent = fmtInt(refundCnt) + ' refunds';
+  $('kRefundRate').textContent = amount ? fmtPct(refund/amount*100, 2) : '—';
+  $('kNet').textContent = '₹ ' + fmtMoney(amount - refund);
+  $('kTxns').textContent = fmtInt(txns);
+  $('kTxnsSub').textContent = activeGw.size + ' gateways · ' + fmtInt(rows.filter(r=>r.currency!=='INR').length) + ' foreign-currency';
+  $('kGw').textContent = activeGw.size;
+  $('kGwSub').textContent = [...activeGw].join(', ');
+}
+
+function renderFxPanel(rows) {
+  const el = $('fxPanel');
+  const nonInr = rows.filter(r => r.currency !== 'INR');
+  if (!nonInr.length) { el.innerHTML = '<div class="muted" style="padding:8px;">No foreign-currency rows.</div>'; return; }
+  const byCur = {};
+  nonInr.forEach(r => {
+    const k = r.currency + '|' + r.kind;
+    if (!byCur[k]) byCur[k] = { currency: r.currency, kind: r.kind, count: 0, amount: 0, charges: 0 };
+    byCur[k].count++; byCur[k].amount += r.amount; byCur[k].charges += r.charges;
+  });
+  el.innerHTML = '';
+  Object.values(byCur).sort((a,b)=>b.amount-a.amount).forEach(v => {
+    const d = document.createElement('div');
+    d.className = 'fx-tile';
+    d.innerHTML = `<div class="c">${v.currency} · ${v.kind}</div>
+      <div class="v">${v.currency} ${fmtMoney(v.amount)}</div>
+      <div class="sub">${fmtInt(v.count)} txns · charges ${fmtMoney(v.charges)}</div>`;
+    el.appendChild(d);
+  });
+}
+
+/* Overview */
+function renderDaily(rows) {
+  destroy('daily');
+  const days = [...new Set(rows.map(r=>r.day))].sort();
+  const chargesByDay = {}, amtByDay = {};
+  days.forEach(d => { chargesByDay[d] = 0; amtByDay[d] = 0; });
+  rows.forEach(r => { chargesByDay[r.day] += r.charges; amtByDay[r.day] += r.amount; });
+  $('trendBadge').textContent = days.length + ' days';
+  state.charts.daily = new Chart($('cDaily'), {
+    data: {
+      labels: days.map(dayLabel),
+      datasets: [
+        { type: 'bar', label: 'Charges', data: days.map(d=>chargesByDay[d]), backgroundColor: '#5b8cff88', borderColor: '#5b8cff', yAxisID: 'y' },
+        { type: 'line', label: 'Amount', data: days.map(d=>amtByDay[d]), borderColor: '#7ee787', backgroundColor: '#7ee78733', yAxisID: 'y1', tension: .3, borderWidth: 2, pointRadius: 2 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { intersect: false, mode: 'index' },
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#e9eefb', font:{size:11} } },
+        tooltip: { callbacks: { label: c => c.dataset.label + ': ₹ ' + fmtMoney(c.parsed.y) } }
+      },
+      scales: {
+        x: { ticks: { color: '#8a94ad', font:{size:11} }, grid: { color: 'rgba(138,148,173,0.08)' } },
+        y:  { position: 'left', beginAtZero: true, ticks: { color: '#5b8cff', callback: v => fmtMoney(v) }, grid: { color: 'rgba(138,148,173,0.08)' } },
+        y1: { position: 'right', beginAtZero: true, ticks: { color: '#7ee787', callback: v => fmtMoney(v) }, grid: { display:false } }
+      }
+    }
+  });
+}
+
+function renderGwShare(rows) {
+  destroy('gwShare');
+  const agg = {};
+  rows.forEach(r => agg[r.gateway] = (agg[r.gateway]||0) + r.charges);
+  const labels = Object.keys(agg).sort((a,b)=>agg[b]-agg[a]);
+  state.charts.gwShare = new Chart($('cGwShare'), {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data: labels.map(l=>agg[l]), backgroundColor: labels.map((_,i)=>color(i)), borderColor: '#141b30', borderWidth: 2 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '62%',
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#e9eefb', boxWidth: 10, font:{size:11} } },
+        tooltip: { callbacks: { label: c => c.label + ': ₹ ' + fmtMoney(c.parsed) } }
+      }
+    }
+  });
+}
+
+function renderGwCharges(rows) {
+  destroy('gwCharges');
+  const agg = {};
+  rows.forEach(r => {
+    if (!agg[r.gateway]) agg[r.gateway] = { comm: 0, tax: 0 };
+    agg[r.gateway].comm += r.commission; agg[r.gateway].tax += r.gst;
+  });
+  const labels = Object.keys(agg).sort((a,b)=>(agg[b].comm+agg[b].tax)-(agg[a].comm+agg[a].tax));
+  state.charts.gwCharges = new Chart($('cGwCharges'), {
+    type: 'bar',
+    data: { labels, datasets: [
+      { label: 'Fee/Commission', data: labels.map(l=>agg[l].comm), backgroundColor: '#5b8cff' },
+      { label: 'Tax/GST', data: labels.map(l=>agg[l].tax), backgroundColor: '#f5b041' }
+    ]},
+    options: baseOpts({ yMoney: true, stacked: true })
+  });
+}
+
+function renderGwFee(rows) {
+  destroy('gwFee');
+  const agg = {};
+  rows.forEach(r => { if (!agg[r.gateway]) agg[r.gateway] = {c:0,a:0}; agg[r.gateway].c += r.charges; agg[r.gateway].a += r.amount; });
+  const e = Object.entries(agg).map(([k,v]) => [k, v.a ? v.c/v.a*100 : 0]).sort((a,b)=>b[1]-a[1]);
+  state.charts.gwFee = new Chart($('cGwFee'), {
+    type: 'bar',
+    data: { labels: e.map(x=>x[0]), datasets: [{ label: 'Fee %', data: e.map(x=>+x[1].toFixed(3)), backgroundColor: e.map((_,i)=>color(i)) }]},
+    options: baseOpts({ yPct: true, legend: false })
+  });
+}
+
+function renderDailyStacked(rows) {
+  destroy('dailyStacked');
+  const days = [...new Set(rows.map(r=>r.day))].sort();
+  const gws = [...new Set(rows.map(r=>r.gateway))];
+  const map = {}; gws.forEach(g => map[g] = Object.fromEntries(days.map(d=>[d,0])));
+  rows.forEach(r => { map[r.gateway][r.day] += r.charges; });
+  const datasets = gws.map((g,i) => ({ label: g, data: days.map(d=>map[g][d]), backgroundColor: color(i) }));
+  state.charts.dailyStacked = new Chart($('cDailyStacked'), {
+    type: 'bar', data: { labels: days.map(dayLabel), datasets },
+    options: baseOpts({ yMoney: true, stacked: true })
+  });
+}
+
+/* Gateways tab */
+function renderGwTable(rows) {
+  const agg = {};
+  rows.forEach(r => {
+    const k = r.gateway + '|' + r.currency;
+    if (!agg[k]) agg[k] = { gateway: r.gateway, currency: r.currency, pt: 0, pa: 0, pc: 0, rt: 0, ra: 0 };
+    if (r.kind === 'payment') { agg[k].pt++; agg[k].pa += r.amount; agg[k].pc += r.charges; }
+    else if (r.kind === 'refund') { agg[k].rt++; agg[k].ra += r.amount; }
+  });
+  const tb = $('tblGw').querySelector('tbody');
+  tb.innerHTML = '';
+  Object.values(agg).sort((a,b) => b.pc - a.pc).forEach(v => {
+    const symb = v.currency === 'INR' ? '₹ ' : v.currency + ' ';
+    const feePct = v.pa ? (v.pc/v.pa*100).toFixed(3) + '%' : '—';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><span class="pill gw">${v.gateway}</span></td>
+      <td>${v.currency}</td>
+      <td class="num">${fmtInt(v.pt)}</td>
+      <td class="num">${symb}${fmtMoney(v.pa)}</td>
+      <td class="num">${symb}${fmtMoney(v.pc)}</td>
+      <td class="num">${feePct}</td>
+      <td class="num">${fmtInt(v.rt)}</td>
+      <td class="num">${symb}${fmtMoney(v.ra)}</td>
+      <td class="num">${symb}${fmtMoney(v.pa - v.ra)}</td>`;
+    tb.appendChild(tr);
+  });
+}
+
+function renderGwDaily(rows) {
+  destroy('gwDaily');
+  const days = [...new Set(rows.map(r=>r.day))].sort();
+  const gws = [...new Set(rows.map(r=>r.gateway))];
+  const map = {}; gws.forEach(g => map[g] = Object.fromEntries(days.map(d=>[d,0])));
+  rows.forEach(r => { map[r.gateway][r.day] += r.charges; });
+  const datasets = gws.map((g,i) => ({ label: g, data: days.map(d=>map[g][d]), borderColor: color(i), backgroundColor: color(i)+'22', tension: .3, borderWidth: 2, pointRadius: 2 }));
+  state.charts.gwDaily = new Chart($('cGwDaily'), {
+    type: 'line', data: { labels: days.map(dayLabel), datasets },
+    options: baseOpts({ yMoney: true })
+  });
+}
+
+function renderGwMatrix(rows) {
+  renderMatrixInto('gwMatrixWrap', rows, r => r.gateway, r => r.mode, (cell) => fmtMoney(cell.c), 'charges');
+}
+
+/* Modes tab */
+function renderModeTable(rows) {
+  const agg = {};
+  rows.forEach(r => {
+    if (!agg[r.mode]) agg[r.mode] = { t:0, a:0, c:0, g:0, ch:0 };
+    agg[r.mode].t++; agg[r.mode].a += r.amount; agg[r.mode].c += r.commission; agg[r.mode].g += r.gst; agg[r.mode].ch += r.charges;
+  });
+  const tb = $('tblMode').querySelector('tbody');
+  tb.innerHTML = '';
+  Object.entries(agg).sort((a,b)=>b[1].ch-a[1].ch).forEach(([k,v]) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>${k}</strong></td>
+      <td class="num">${fmtInt(v.t)}</td>
+      <td class="num">₹ ${fmtMoney(v.a)}</td>
+      <td class="num">₹ ${fmtMoney(v.c)}</td>
+      <td class="num">₹ ${fmtMoney(v.g)}</td>
+      <td class="num"><strong>₹ ${fmtMoney(v.ch)}</strong></td>
+      <td class="num">${v.a ? fmtPct(v.ch/v.a*100, 3) : '—'}</td>
+      <td class="num">₹ ${fmtMoney(v.t ? v.a/v.t : 0)}</td>`;
+    tb.appendChild(tr);
+  });
+}
+
+function renderModeCharges(rows) {
+  destroy('modeCharges');
+  const agg = {};
+  rows.forEach(r => { if (!agg[r.mode]) agg[r.mode] = {c:0,g:0}; agg[r.mode].c += r.commission; agg[r.mode].g += r.gst; });
+  const labels = Object.keys(agg).sort((a,b) => (agg[b].c+agg[b].g)-(agg[a].c+agg[a].g));
+  state.charts.modeCharges = new Chart($('cModeCharges'), {
+    type: 'bar',
+    data: { labels, datasets: [
+      { label: 'Commission', data: labels.map(l=>agg[l].c), backgroundColor: '#5b8cff' },
+      { label: 'Tax', data: labels.map(l=>agg[l].g), backgroundColor: '#f5b041' },
+    ]},
+    options: baseOpts({ yMoney: true, stacked: true })
+  });
+}
+
+function renderModeFee(rows) {
+  destroy('modeFee');
+  const agg = {};
+  rows.forEach(r => { if (!agg[r.mode]) agg[r.mode]={c:0,a:0}; agg[r.mode].c+=r.charges; agg[r.mode].a+=r.amount; });
+  const e = Object.entries(agg).map(([k,v]) => [k, v.a ? v.c/v.a*100 : 0]).sort((a,b)=>b[1]-a[1]);
+  state.charts.modeFee = new Chart($('cModeFee'), {
+    type: 'bar',
+    data: { labels: e.map(x=>x[0]), datasets: [{ label: 'Fee %', data: e.map(x=>+x[1].toFixed(3)), backgroundColor: e.map((_,i)=>color(i)) }]},
+    options: baseOpts({ yPct: true, legend: false })
+  });
+}
+
+function renderMatrix(rows) {
+  renderMatrixInto('matrixWrap', rows, r => r.gateway, r => r.mode, cell => cell.a ? (cell.c/cell.a*100).toFixed(2) + '%' : '—', 'fee%');
+}
+
+function renderMatrixInto(containerId, rows, rowFn, colFn, cellFmt, label) {
+  const wrap = $(containerId);
+  const rowKeys = [...new Set(rows.map(rowFn))].sort();
+  const colKeys = [...new Set(rows.map(colFn))].sort();
+  const agg = {};
+  rowKeys.forEach(rk => { agg[rk] = {}; colKeys.forEach(ck => agg[rk][ck] = { c:0, a:0 }); });
+  rows.forEach(r => { const rk=rowFn(r), ck=colFn(r); if (agg[rk] && agg[rk][ck]) { agg[rk][ck].c += r.charges; agg[rk][ck].a += r.amount; } });
+  let maxV = 0;
+  rowKeys.forEach(rk => colKeys.forEach(ck => { const v = agg[rk][ck]; const raw = label==='fee%' ? (v.a? v.c/v.a*100: 0) : v.c; maxV = Math.max(maxV, raw); }));
+  wrap.innerHTML = '';
+  if (!rowKeys.length || !colKeys.length) { wrap.innerHTML = '<div class="muted" style="padding:10px;">No data.</div>'; return; }
+  const mtx = document.createElement('div');
+  mtx.className = 'matrix';
+  mtx.style.gridTemplateColumns = 'minmax(110px, 140px) repeat(' + colKeys.length + ', minmax(80px, 1fr))';
+  mtx.appendChild(cell('', 'label'));
+  colKeys.forEach(ck => mtx.appendChild(cell(ck, 'header')));
+  rowKeys.forEach(rk => {
+    mtx.appendChild(cell(rk, 'header'));
+    colKeys.forEach(ck => {
+      const v = agg[rk][ck];
+      const raw = label==='fee%' ? (v.a? v.c/v.a*100: 0) : v.c;
+      if (raw <= 0) { mtx.appendChild(cell('—', 'label')); return; }
+      const t = maxV ? raw/maxV : 0;
+      const bg = `rgba(91,140,255,${0.12 + t*0.75})`;
+      const c = cell(cellFmt(v), '');
+      c.style.background = bg; c.style.color = '#fff';
+      c.title = `${rk} × ${ck}\nAmount: ₹${fmtMoney(v.a)}\nCharges: ₹${fmtMoney(v.c)}`;
+      mtx.appendChild(c);
+    });
+  });
+  wrap.appendChild(mtx);
+  function cell(text, cls) { const d = document.createElement('div'); d.className = 'cell ' + cls; d.textContent = text; return d; }
+}
+
+/* Banks tab */
+function renderScheme(rows) {
+  destroy('scheme');
+  const agg = {};
+  rows.forEach(r => { if (r.scheme==='(n/a)') return; agg[r.scheme] = (agg[r.scheme]||0) + r.charges; });
+  const e = Object.entries(agg).sort((a,b)=>b[1]-a[1]);
+  state.charts.scheme = new Chart($('cScheme'), {
+    type: 'bar',
+    data: { labels: e.map(x=>x[0]), datasets: [{ label: 'Charges', data: e.map(x=>x[1]), backgroundColor: e.map((_,i)=>color(i)) }]},
+    options: baseOpts({ yMoney: true, legend: false })
+  });
+}
+
+function renderAcquirer(rows) {
+  destroy('acq');
+  const agg = {};
+  rows.forEach(r => agg[r.acquirer] = (agg[r.acquirer]||0) + r.charges);
+  const e = Object.entries(agg).sort((a,b)=>b[1]-a[1]).slice(0, 12);
+  state.charts.acq = new Chart($('cAcq'), {
+    type: 'bar',
+    data: { labels: e.map(x=>x[0]), datasets: [{ label: 'Charges', data: e.map(x=>x[1]), backgroundColor: e.map((_,i)=>color(i+3)) }]},
+    options: baseOpts({ yMoney: true, legend: false, indexAxis: 'y' })
+  });
+}
+
+function renderBankTable(rows) {
+  const q = ($('bankSearch').value || '').toLowerCase().trim();
+  const agg = {};
+  rows.forEach(r => { if (!agg[r.issuingBank]) agg[r.issuingBank] = {t:0,a:0,c:0}; agg[r.issuingBank].t++; agg[r.issuingBank].a += r.amount; agg[r.issuingBank].c += r.charges; });
+  const tb = $('tblBank').querySelector('tbody');
+  tb.innerHTML = '';
+  Object.entries(agg).filter(([k]) => !q || k.toLowerCase().includes(q)).sort((a,b)=>b[1].c-a[1].c).slice(0, 200).forEach(([k,v]) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${k}</td><td class="num">${fmtInt(v.t)}</td><td class="num">₹ ${fmtMoney(v.a)}</td><td class="num">₹ ${fmtMoney(v.c)}</td><td class="num">${v.a ? fmtPct(v.c/v.a*100, 3) : '—'}</td>`;
+    tb.appendChild(tr);
+  });
+}
+
+/* Refunds tab */
+function renderRefundKPIs(inrPay, inrRef) {
+  const a = inrRef.reduce((x,r)=>x+r.amount, 0);
+  const pa = inrPay.reduce((x,r)=>x+r.amount, 0);
+  $('rAmount').textContent = '₹ ' + fmtMoney(a);
+  $('rAmountSub').textContent = fmtFull(a);
+  $('rCount').textContent = fmtInt(inrRef.length);
+  $('rCountSub').textContent = 'across ' + new Set(inrRef.map(r=>r.gateway)).size + ' gateways';
+  $('rRatePct').textContent = pa ? fmtPct(a/pa*100, 2) : '—';
+  $('rAvg').textContent = inrRef.length ? '₹ ' + fmtMoney(a/inrRef.length) : '—';
+}
+function renderRefundDaily(rows) {
+  destroy('refDaily');
+  const days = [...new Set(rows.map(r=>r.day))].sort();
+  const byDay = Object.fromEntries(days.map(d=>[d,0]));
+  rows.forEach(r => byDay[r.day] += r.amount);
+  state.charts.refDaily = new Chart($('cRefundDaily'), {
+    type: 'bar',
+    data: { labels: days.map(dayLabel), datasets: [{ label: 'Refunds', data: days.map(d=>byDay[d]), backgroundColor: '#ff6b6b' }]},
+    options: baseOpts({ yMoney: true, legend: false })
+  });
+}
+function renderRefundGw(rows) {
+  destroy('refGw');
+  const agg = {};
+  rows.forEach(r => agg[r.gateway] = (agg[r.gateway]||0) + r.amount);
+  const labels = Object.keys(agg).sort((a,b)=>agg[b]-agg[a]);
+  state.charts.refGw = new Chart($('cRefundGw'), {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data: labels.map(l=>agg[l]), backgroundColor: labels.map((_,i)=>color(i)), borderColor: '#141b30', borderWidth: 2 }]},
+    options: { responsive:true, maintainAspectRatio:false, cutout:'55%',
+      plugins: { legend: { position:'bottom', labels: { color:'#e9eefb', boxWidth:10, font:{size:11} } },
+        tooltip: { callbacks: { label: c => c.label + ': ' + fmtMoney(c.parsed) } } } }
+  });
+}
+function renderRefundMode(rows) {
+  destroy('refMode');
+  const agg = {};
+  rows.forEach(r => agg[r.mode] = (agg[r.mode]||0) + r.amount);
+  const e = Object.entries(agg).sort((a,b)=>b[1]-a[1]);
+  state.charts.refMode = new Chart($('cRefundMode'), {
+    type: 'bar',
+    data: { labels: e.map(x=>x[0]), datasets: [{ label: 'Refund', data: e.map(x=>x[1]), backgroundColor: e.map((_,i)=>color(i+2)) }]},
+    options: baseOpts({ yMoney: true, legend: false })
+  });
+}
+function renderRefundBank(rows) {
+  destroy('refBank');
+  const agg = {};
+  rows.forEach(r => { if (r.issuingBank==='(blank)') return; agg[r.issuingBank] = (agg[r.issuingBank]||0) + r.amount; });
+  const e = Object.entries(agg).sort((a,b)=>b[1]-a[1]).slice(0, 10);
+  state.charts.refBank = new Chart($('cRefundBank'), {
+    type: 'bar',
+    data: { labels: e.map(x=>x[0]), datasets: [{ label: 'Refund', data: e.map(x=>x[1]), backgroundColor: e.map((_,i)=>color(i+5)) }]},
+    options: baseOpts({ yMoney: true, legend: false, indexAxis: 'y' })
+  });
+}
+function renderRefundTable(rows) {
+  const tb = $('tblRefund').querySelector('tbody'); tb.innerHTML = '';
+  let shown = 0;
+  rows.forEach(r => {
+    if (shown >= 500) return;
+    const symb = r.currency === 'INR' ? '₹ ' : r.currency + ' ';
+    const pill = r.status.includes('SUCCESS') || r.status === 'PROCESSED' ? 'success' : (r.status.includes('FAIL') ? 'failed' : 'neutral');
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${r.dt.toLocaleDateString()}</td>
+      <td><span class="pill gw">${r.gateway}</span></td>
+      <td style="max-width:160px; overflow:hidden; text-overflow:ellipsis;" title="${r.txnId}">${r.txnId.slice(-12)}</td>
+      <td>${r.mode}</td>
+      <td>${r.issuingBank}</td>
+      <td><span class="pill ${pill}">${r.status}</span></td>
+      <td class="num">${r.currency}</td>
+      <td class="num">${symb}${fmtMoney(r.amount)}</td>`;
+    tb.appendChild(tr); shown++;
+  });
+  $('refundBadge').textContent = fmtInt(rows.length) + ' rows' + (rows.length > shown ? ' (showing '+shown+')' : '');
+}
+
+/* Detail tab */
+function renderDetailTable(rows) {
+  const q = ($('detailSearch').value || '').toLowerCase().trim();
+  const tb = $('tblDetail').querySelector('tbody'); tb.innerHTML = '';
+  let shown = 0;
+  for (const r of rows) {
+    if (q) {
+      const hay = [r.gateway, r.txnId, r.orderId, r.mode, r.scheme, r.issuingBank, r.status, r.country, r.currency].join(' ').toLowerCase();
+      if (!hay.includes(q)) continue;
+    }
+    if (shown >= 500) break;
+    const pill = r.status === 'SUCCESS' ? 'success' : (/FAIL/.test(r.status) ? 'failed' : (r.status === 'PENDING' ? 'pending' : 'neutral'));
+    const symb = r.currency === 'INR' ? '₹ ' : r.currency + ' ';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${r.dt.toLocaleDateString()} ${r.dt.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
+      <td><span class="pill gw">${r.gateway}</span></td>
+      <td>${r.kind}</td>
+      <td>${r.mode}</td>
+      <td>${r.scheme}</td>
+      <td>${r.issuingBank}</td>
+      <td><span class="pill ${pill}">${r.status}</span></td>
+      <td>${r.country}</td>
+      <td>${r.currency}</td>
+      <td class="num">${symb}${fmtMoney(r.amount)}</td>
+      <td class="num">${symb}${fmtMoney(r.charges)}</td>
+      <td class="num">${r.amount ? fmtPct(r.feePct, 3) : '—'}</td>`;
+    tb.appendChild(tr); shown++;
+  }
+  $('detailBadge').textContent = fmtInt(rows.length) + ' rows' + (rows.length > shown ? ' (showing '+shown+')' : '');
+}
+
+/* Exports */
+function downloadCSV(name, rows) {
+  const csv = Papa.unparse(rows);
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
+}
+$('expGw').onclick = () => {
+  const rows = filtered();
+  const agg = {};
+  rows.forEach(r => {
+    const k = r.gateway + '|' + r.currency;
+    if (!agg[k]) agg[k] = { Gateway: r.gateway, Currency: r.currency, Payments: 0, Amount: 0, Charges: 0, Refunds: 0, RefundAmt: 0 };
+    if (r.kind === 'payment') { agg[k].Payments++; agg[k].Amount += r.amount; agg[k].Charges += r.charges; }
+    else { agg[k].Refunds++; agg[k].RefundAmt += r.amount; }
+  });
+  const out = Object.values(agg).map(v => ({ ...v, 'Fee %': v.Amount ? +(v.Charges/v.Amount*100).toFixed(4) : '', 'Net': v.Amount - v.RefundAmt }));
+  downloadCSV('gateway_breakdown.csv', out);
+};
+$('expMode').onclick = () => {
+  const rows = filtered().filter(r => r.currency === 'INR' && r.kind === 'payment');
+  const agg = {};
+  rows.forEach(r => {
+    if (!agg[r.mode]) agg[r.mode] = { Mode: r.mode, Payments: 0, Amount: 0, Commission: 0, Tax: 0, Charges: 0 };
+    agg[r.mode].Payments++; agg[r.mode].Amount += r.amount; agg[r.mode].Commission += r.commission; agg[r.mode].Tax += r.gst; agg[r.mode].Charges += r.charges;
+  });
+  const out = Object.values(agg).map(v => ({ ...v, 'Fee %': v.Amount ? +(v.Charges/v.Amount*100).toFixed(4) : '' }));
+  downloadCSV('mode_breakdown.csv', out);
+};
+$('expBank').onclick = () => {
+  const rows = filtered().filter(r => r.currency === 'INR' && r.kind === 'payment');
+  const agg = {};
+  rows.forEach(r => { if (!agg[r.issuingBank]) agg[r.issuingBank] = { 'Issuing Bank': r.issuingBank, Txns: 0, Amount: 0, Charges: 0 }; agg[r.issuingBank].Txns++; agg[r.issuingBank].Amount += r.amount; agg[r.issuingBank].Charges += r.charges; });
+  const out = Object.values(agg).map(v => ({ ...v, 'Fee %': v.Amount ? +(v.Charges/v.Amount*100).toFixed(4) : '' }));
+  downloadCSV('bank_breakdown.csv', out);
+};
+$('expRefund').onclick = () => {
+  const rows = filtered().filter(r => r.kind === 'refund').map(r => r.raw);
+  downloadCSV('refunds_filtered.csv', rows);
+};
+$('expDetail').onclick = () => {
+  const rows = filtered().map(r => r.raw);
+  downloadCSV('transactions_filtered.csv', rows);
+};
+</script>
+</body>
+</html>
